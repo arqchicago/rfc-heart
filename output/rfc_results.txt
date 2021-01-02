@@ -1,0 +1,5 @@
+best parameters = n_estimators=500, min_samples_split=10, min_samples_leaf=5, max_features=0.25, max_depth=40, bootstrap=True
+roc_auc:  (train=0.881)  (test=0.935)
+accuracy:  (train=0.888)  (test=0.934)
+recall:  (train=0.94)  (test=1.0)
+precision:  (train=0.869)  (test=0.882)
