@@ -1,5 +1,21 @@
-best parameters = n_estimators=500, min_samples_split=10, min_samples_leaf=5, max_features=0.25, max_depth=40, bootstrap=True
-roc_auc:  (train=0.881)  (test=0.935)
-accuracy:  (train=0.888)  (test=0.934)
-recall:  (train=0.94)  (test=1.0)
-precision:  (train=0.869)  (test=0.882)
+best parameters = n_estimators=100, min_samples_split=5, min_samples_leaf=10, max_features=0.25, max_depth=10, bootstrap=False
+roc_auc:  (train=0.885)  (test=0.821)
+accuracy:  (train=0.892)  (test=0.82)
+recall:  (train=0.948)  (test=0.9)
+precision:  (train=0.87)  (test=0.771)
+
+variable importances: 
+          importance
+thal        0.238696
+cp          0.192619
+ca          0.128298
+oldpeak     0.127100
+thalach     0.086464
+slope       0.049649
+age         0.046709
+exang       0.041843
+sex         0.036923
+chol        0.023677
+trestbps    0.019431
+restecg     0.008027
+fbs         0.000565

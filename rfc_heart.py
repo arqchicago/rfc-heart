@@ -58,7 +58,8 @@ optimized_rfc = skms.RandomizedSearchCV(estimator = RandomForestClassifier(),
                                         param_distributions = random_grid, 
                                         n_iter = 100, 
                                         cv = 5, 
-                                        scoring='roc_auc',
+                                        scoring=['roc_auc', 'recall'],
+                                        refit ='roc_auc',
                                         verbose=1, 
                                         random_state=42, 
                                         n_jobs = -1)
@@ -69,18 +70,14 @@ print('\n')
 
 #----  obtaining results of the grid run
 cv_results = optimized_rfc.cv_results_
-cv_params = cv_results['params']
-cv_mean_scores = optimized_rfc.cv_results_['mean_test_score']
-cv_mean_runtimes = cv_results['mean_score_time']
+cv_results_df = pd.DataFrame(cv_results)
+
+print('> hyperparameter tuning results')
+print(cv_results_df)
+
 
 best_params = optimized_rfc.best_params_
 best_score = optimized_rfc.best_score_
-
-cv_params_df = pd.DataFrame(cv_params)
-cv_params_df['cv_mean_scores'] = pd.Series(cv_mean_scores)
-cv_params_df['cv_mean_runtimes'] = pd.Series(cv_mean_runtimes)
-print('> hyperparameter tuning results')
-print(cv_params_df)
 
 print(f'> best hyperparameters = {best_params}')
 print(f'> best cv score = {best_score} \n')
@@ -116,7 +113,7 @@ print(rfc_feature_imp_df)
 
 
 #----  saving model results
-cv_params_df.to_csv('output\\cv_params.csv')
+cv_results_df.to_csv('output\\cv_results.csv')
 
 best_params_str = ', '.join('{}={}'.format(key, val) for key, val in best_params.items())
 
@@ -125,4 +122,8 @@ with open('output//rfc_results.txt', 'w') as file:
     file.write('roc_auc:  '+'(train='+str(roc_auc_train)+')  (test='+str(roc_auc_test)+')'+'\n')
     file.write('accuracy:  '+'(train='+str(accuracy_train)+')  (test='+str(accuracy_test)+')'+'\n')
     file.write('recall:  '+'(train='+str(recall_train)+')  (test='+str(recall_test)+')'+'\n')
-    file.write('precision:  '+'(train='+str(precision_train)+')  (test='+str(precision_test)+')'+'\n')
+    file.write('precision:  '+'(train='+str(precision_train)+')  (test='+str(precision_test)+')'+'\n\n')
+    
+with open('output//rfc_results.txt', 'a') as file:
+    file.write('variable importances: \n')
+    rfc_feature_imp_df.to_string(file)
