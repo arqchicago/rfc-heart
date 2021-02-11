@@ -1,21 +1,21 @@
-best parameters = n_estimators=100, min_samples_split=5, min_samples_leaf=10, max_features=0.25, max_depth=10, bootstrap=False
-roc_auc:  (train=0.885)  (test=0.821)
-accuracy:  (train=0.892)  (test=0.82)
-recall:  (train=0.948)  (test=0.9)
-precision:  (train=0.87)  (test=0.771)
+best parameters = random_state=594436, n_estimators=100, min_samples_split=20, min_samples_leaf=5, max_features=0.25, max_depth=5, bootstrap=True
+roc_auc:  (train=0.886)  (test=0.883)
+accuracy:  (train=0.892)  (test=0.885)
+recall:  (train=0.947)  (test=0.938)
+precision:  (train=0.868)  (test=0.857)
 
 variable importances: 
           importance
-thal        0.238696
-cp          0.192619
-ca          0.128298
-oldpeak     0.127100
-thalach     0.086464
-slope       0.049649
-age         0.046709
-exang       0.041843
-sex         0.036923
-chol        0.023677
-trestbps    0.019431
-restecg     0.008027
-fbs         0.000565
+cp          0.161914
+ca          0.144962
+oldpeak     0.144427
+thal        0.134612
+thalach     0.107189
+exang       0.084657
+slope       0.058572
+age         0.040795
+chol        0.039675
+sex         0.035596
+trestbps    0.035027
+restecg     0.009419
+fbs         0.003156

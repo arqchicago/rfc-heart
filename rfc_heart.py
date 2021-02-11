@@ -10,8 +10,9 @@ import numpy as np
 import sklearn as sk
 import sklearn.model_selection as skms
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, confusion_matrix
 
+random_seed = 594436
 target_var = 'target'
 test_size = 0.20
 train_size = 1-test_size
@@ -48,10 +49,11 @@ print(f'> testing set = {test_rows} ({round(test_rows*1.0/rows,3)}) \n')
 #----  random forest training with hyperparameter tuning
 random_grid = {'n_estimators': [10, 100, 500, 1000],
                'max_features': [0.25, 0.50, 0.75],
-               'max_depth': [10, 20, 30, 40, 50, None],
-               'min_samples_split': [5, 10, 20],
-               'min_samples_leaf': [3, 5, 10],
-               'bootstrap': [True, False]}
+               'max_depth': [5, 10, 20, 25],
+               'min_samples_split': [10, 20],
+               'min_samples_leaf': [5, 7, 10],
+               'bootstrap': [True, False],
+               'random_state': [random_seed]}
 
 print('> Random Forest classifier...')
 optimized_rfc = skms.RandomizedSearchCV(estimator = RandomForestClassifier(), 
@@ -61,8 +63,8 @@ optimized_rfc = skms.RandomizedSearchCV(estimator = RandomForestClassifier(),
                                         scoring=['roc_auc', 'recall'],
                                         refit ='roc_auc',
                                         verbose=1, 
-                                        random_state=42, 
-                                        n_jobs = -1)
+                                        n_jobs = -1,
+                                        random_state = random_seed)
 
 optimized_rfc.fit(X_train, y_train)
 print('\n')
