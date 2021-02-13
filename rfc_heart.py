@@ -10,9 +10,10 @@ import numpy as np
 import sklearn as sk
 import sklearn.model_selection as skms
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, confusion_matrix, roc_curve, auc
+import matplotlib.pyplot as plt
 
-random_seed = 594436
+random_seed = 295471
 target_var = 'target'
 test_size = 0.20
 train_size = 1-test_size
@@ -30,7 +31,7 @@ print(f'> {target_var}==0 ({target0_rows})  {target_var}==1 ({target1_rows})')
 y = heart_df.target
 X = heart_df.drop(target_var, axis=1)
 features = X.columns.tolist()
-X_train, X_test, y_train, y_test = skms.train_test_split(X, y, test_size=test_size)
+X_train, X_test, y_train, y_test = skms.train_test_split(X, y, test_size=test_size, random_state=random_seed)
 X_train_rows, y_train_rows = X_train.shape[0], y_train.shape[0]
 X_test_rows, y_test_rows = X_test.shape[0], y_test.shape[0]
 train_rows, test_rows = -1, -1
@@ -93,10 +94,12 @@ recall_train = round(recall_score(y_train, y_train_pred),3)
 precision_train = round(precision_score(y_train, y_train_pred),3)
 
 y_pred = optimized_rfc.predict(X_test)
+y_pred_proba = optimized_rfc.predict_proba(X_test)[:, 1]
 accuracy_test = round(accuracy_score(y_test, y_pred),3)
 roc_auc_test = round(roc_auc_score(y_test, y_pred),3)
 recall_test = round(recall_score(y_test, y_pred),3)
 precision_test = round(precision_score(y_test, y_pred),3)
+confusion_matrix = confusion_matrix(y_test, y_pred)
 
 print('> evaluation metrics \n')
 print('%-10s %20s %10s' % ('metric','training','testing'))
@@ -106,6 +109,12 @@ print('%-10s %20s %10s' % ('recall', recall_train, recall_test))
 print('%-10s %20s %10s' % ('precision', precision_train, precision_test))
 print('\n')
 
+print('> confusion matrix \n')
+print(confusion_matrix)
+print('\n')
+
+fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+roc_auc = auc(fpr, tpr)
 
 #----  getting feature importance
 rfc_feature_imp_df = pd.DataFrame(optimized_rfc.best_estimator_.feature_importances_, index=X_train.columns, columns=['importance'])
@@ -119,6 +128,7 @@ cv_results_df.to_csv('output\\cv_results.csv')
 
 best_params_str = ', '.join('{}={}'.format(key, val) for key, val in best_params.items())
 
+# Saving parameters and evaluation metrics for the best model
 with open('output//rfc_results.txt', 'w') as file:
     file.write('best parameters = '+best_params_str+'\n')
     file.write('roc_auc:  '+'(train='+str(roc_auc_train)+')  (test='+str(roc_auc_test)+')'+'\n')
@@ -126,6 +136,22 @@ with open('output//rfc_results.txt', 'w') as file:
     file.write('recall:  '+'(train='+str(recall_train)+')  (test='+str(recall_test)+')'+'\n')
     file.write('precision:  '+'(train='+str(precision_train)+')  (test='+str(precision_test)+')'+'\n\n')
     
+# Saving variable importances
 with open('output//rfc_results.txt', 'a') as file:
     file.write('variable importances: \n')
     rfc_feature_imp_df.to_string(file)
+    
+# ROC curve
+# print(plt.style.available)
+plt.style.use('seaborn')
+fig, ax = plt.subplots()
+ax.plot(fpr, tpr)
+ax.set_title('ROC Curve (auc = %0.2f)' % roc_auc, fontsize=22, fontweight='bold')
+ax.set_xlabel('False Positive Rate', fontsize=16, fontweight='bold')
+ax.set_ylabel('True Positive Rate', fontsize=16, fontweight='bold')
+ax.spines['left'].set_color('black')
+ax.spines['left'].set_linewidth(2)
+ax.spines['bottom'].set_color('black')
+ax.spines['bottom'].set_linewidth(2)
+ax.grid(True)
+fig.savefig('output/roc_plot.png')
