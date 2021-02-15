@@ -117,13 +117,21 @@ fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
 roc_auc = auc(fpr, tpr)
 
 #----  getting feature importance
-rfc_feature_imp_df = pd.DataFrame(optimized_rfc.best_estimator_.feature_importances_, index=X_train.columns, columns=['importance'])
+optimized_rfc_importance = optimized_rfc.best_estimator_.feature_importances_
+indices = np.argsort(-1*optimized_rfc_importance)
+rfc_feature_imp_df = pd.DataFrame(optimized_rfc_importance, index=X_train.columns, columns=['importance'])
 rfc_feature_imp_df.sort_values(by='importance', ascending=False, inplace=True)
+
+# summarize feature importance
 print('> feature importance')
-print(rfc_feature_imp_df)
+
+for i in indices:
+    print('%-8s %-20s' % (round(optimized_rfc_importance[i], 4), f'({features[i]})'))
 
 
 #----  saving model results
+
+# saving cv runs
 cv_results_df.to_csv('output\\cv_results.csv')
 
 best_params_str = ', '.join('{}={}'.format(key, val) for key, val in best_params.items())
@@ -155,3 +163,20 @@ ax.spines['bottom'].set_color('black')
 ax.spines['bottom'].set_linewidth(2)
 ax.grid(True)
 fig.savefig('output/roc_plot.png')
+
+# feature importance plot
+plt.style.use('seaborn')
+fig, ax = plt.subplots()
+ax.barh(range(len(indices)), optimized_rfc_importance[indices], align='center')
+ax.set_yticks(range(len(indices)))
+ax.set_yticklabels([features[i] for i in indices], fontsize=12)
+ax.invert_yaxis()
+ax.set_title('Feature Importances', fontsize=22, fontweight='bold')
+ax.set_xlabel('Relative Importance', fontsize=16, fontweight='bold')
+ax.set_ylabel('Features', fontsize=16, fontweight='bold')
+ax.spines['left'].set_color('black')
+ax.spines['left'].set_linewidth(2)
+ax.spines['bottom'].set_color('black')
+ax.spines['bottom'].set_linewidth(2)
+ax.grid(True)
+fig.savefig('output/feature_importance_plot.png')
