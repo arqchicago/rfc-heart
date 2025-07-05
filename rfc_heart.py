@@ -18,165 +18,157 @@ target_var = 'target'
 test_size = 0.20
 train_size = 1-test_size
 
-#----  reading data
-heart_df = pd.read_csv('data\\heart2.csv')
-rows, cols = heart_df.shape
-target0_rows = heart_df[heart_df[target_var]==0].shape[0]
-target1_rows = heart_df[heart_df[target_var]==1].shape[0]
-print(f'> data rows = {rows}  data cols = {cols}')
-print(f'> {target_var}==0 ({target0_rows})  {target_var}==1 ({target1_rows})')
+def read_data(file_path):
+    """
+    Reads the CSV file and returns a DataFrame.
+    """
+
+    # Check if the file exists
+    try:
+        with open(file_path, 'r') as f:
+            pass
+    except FileNotFoundError:
+        print(f"File {file_path} not found.")
+        return None
+
+    # if file exists, read the CSV file
+    heart_df = pd.read_csv(file_path)
+    rows, cols = heart_df.shape
+    print(f'> data rows = {rows}  data cols = {cols}')
+
+    return heart_df
 
 
-#----  splitting into training & testing sets
-y = heart_df.target
-X = heart_df.drop(target_var, axis=1)
-features = X.columns.tolist()
-X_train, X_test, y_train, y_test = skms.train_test_split(X, y, test_size=test_size, random_state=random_seed)
-X_train_rows, y_train_rows = X_train.shape[0], y_train.shape[0]
-X_test_rows, y_test_rows = X_test.shape[0], y_test.shape[0]
-train_rows, test_rows = -1, -1
+def split_train_test_data(df, target_var, test_size, random_seed=1):
+    """
+    Splits the dataframe into X_train, X_test, y_train, y_test using sklearn's train_test_split.
+    Args:
+        df (pd.DataFrame): The input dataframe.
+        target_var (str): The name of the target variable column.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_seed (int, optional): Random seed for reproducibility. Defaults to 1.
+    Returns:
+        X_train, X_test, y_train, y_test
+    """
+    y = df[target_var]
+    X = df.drop(target_var, axis=1)
+    X_train, X_test, y_train, y_test = skms.train_test_split(X, y, test_size=test_size, random_state=random_seed)
+    X_train_rows, y_train_rows = X_train.shape[0], y_train.shape[0]
+    X_test_rows, y_test_rows = X_test.shape[0], y_test.shape[0]
+    rows = X_train_rows + X_test_rows
 
-if X_train_rows == y_train_rows:
-    train_rows = X_train_rows
+    print(f'> training set = {X_train_rows} ({round(X_train_rows*1.0/rows,3)})')
+    print(f'> testing set = {X_test_rows} ({round(X_test_rows*1.0/rows,3)}) \n')
 
-if X_test_rows == y_test_rows:
-    test_rows = X_test_rows
+    return X_train, X_test, y_train, y_test
+
+
+def train_model(X_train, X_test, y_train, y_test, random_seed=1):
+    """
+    Trains a Random Forest Classifier with hyperparameter tuning using RandomizedSearchCV.
+    Args:
+        X_train (pd.DataFrame): Training features.
+        X_test (pd.DataFrame): Testing features.
+        y_train (pd.Series): Training labels.
+        y_test (pd.Series): Testing labels.
+        random_seed (int, optional): Random seed for reproducibility. Defaults to 1.
+    Returns:
+        optimized_rfc: The trained Random Forest Classifier with best hyperparameters.
+    """
+
+    #----  random forest training with hyperparameter tuning
+    random_grid = {'n_estimators': [10, 100, 500, 1000],
+                'max_features': [0.25, 0.50, 0.75],
+                'max_depth': [5, 10, 20, 25],
+                'min_samples_split': [10, 20],
+                'min_samples_leaf': [5, 7, 10],
+                'bootstrap': [True, False],
+                'random_state': [random_seed]}
+
+    print('> Random Forest classifier...')
+    optimized_rfc = skms.RandomizedSearchCV(estimator = RandomForestClassifier(), 
+                                            param_distributions = random_grid, 
+                                            n_iter = 5, 
+                                            cv = 3, 
+                                            scoring=['roc_auc', 'recall'],
+                                            refit ='roc_auc',
+                                            verbose=1, 
+                                            n_jobs = 1,
+                                            random_state = random_seed)
+
+    optimized_rfc.fit(X_train, y_train)
+    best_params = optimized_rfc.best_params_
+    best_score = optimized_rfc.best_score_
+    print('Model training completed!')
+    print(f'Best parameters are: {best_params}')
+    print(f'Best score (roc_auc) is: {best_score:.3f}')
+    print('\n')
+    return optimized_rfc
+
+
+def evaluate_model(model, X_train, X_test, y_train, y_test):
+    #----  predicting on the training and testing set
+    y_train_pred = model.predict(X_train)
+    accuracy_train = round(accuracy_score(y_train, y_train_pred),3)
+    roc_auc_train = round(roc_auc_score(y_train, y_train_pred),3)
+    recall_train = round(recall_score(y_train, y_train_pred),3)
+    precision_train = round(precision_score(y_train, y_train_pred),3)
+
+    y_pred = model.predict(X_test)
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    accuracy_test = round(accuracy_score(y_test, y_pred),3)
+    roc_auc_test = round(roc_auc_score(y_test, y_pred),3)
+    recall_test = round(recall_score(y_test, y_pred),3)
+    precision_test = round(precision_score(y_test, y_pred),3)
+    cm = confusion_matrix(y_test, y_pred)
+
+    print('> evaluation metrics \n')
+    print('%-10s %20s %10s' % ('metric','training','testing'))
+    print('%-10s %20s %10s' % ('roc auc', roc_auc_train, roc_auc_test))
+    print('%-10s %20s %10s' % ('accuracy', accuracy_train, accuracy_test))
+    print('%-10s %20s %10s' % ('recall', recall_train, recall_test))
+    print('%-10s %20s %10s' % ('precision', precision_train, precision_test))
+    print('\n')
+    print('> confusion matrix \n')
+    print(cm)
+    print('\n')
+
+    # ROC Plot
+    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+    roc_auc = auc(fpr, tpr)
+
+    fig, ax = plt.subplots()
+    ax.plot(fpr, tpr)
+    ax.set_title('ROC Curve (auc = %0.2f)' % roc_auc, fontsize=22, fontweight='bold')
+    ax.set_xlabel('False Positive Rate', fontsize=16, fontweight='bold')
+    ax.set_ylabel('True Positive Rate', fontsize=16, fontweight='bold')
+    ax.spines['left'].set_color('black')
+    ax.spines['left'].set_linewidth(2)
+    ax.spines['bottom'].set_color('black')
+    ax.spines['bottom'].set_linewidth(2)
+    ax.grid(True)
+    fig.savefig('output/roc_plot.png')
+
+
+if __name__ == '__main__':
+
+    random_seed = 295471
+    target_var = 'target'
+    test_size = 0.20
+
+    # Read the data
+    heart_df = read_data('data//heart2.csv')
+
+    if heart_df is not None:
+        # Split the data
+        X_train, X_test, y_train, y_test = split_train_test_data(heart_df, target_var, test_size, random_seed)
+
+        # Train the model
+        optimized_rfc = train_model(X_train, X_test, y_train, y_test, random_seed)
+
+        # Evaluate the model
+        evaluate_model(optimized_rfc, X_train, X_test, y_train, y_test)
     
-print(f'> features = {len(features)}')
-print(f'> training set = {train_rows} ({round(train_rows*1.0/rows,3)})')
-print(f'> testing set = {test_rows} ({round(test_rows*1.0/rows,3)}) \n')
+    else:
+        print("Model not trained due to data loading failure")
 
-
-#----  random forest training with hyperparameter tuning
-random_grid = {'n_estimators': [10, 100, 500, 1000],
-               'max_features': [0.25, 0.50, 0.75],
-               'max_depth': [5, 10, 20, 25],
-               'min_samples_split': [10, 20],
-               'min_samples_leaf': [5, 7, 10],
-               'bootstrap': [True, False],
-               'random_state': [random_seed]}
-
-print('> Random Forest classifier...')
-optimized_rfc = skms.RandomizedSearchCV(estimator = RandomForestClassifier(), 
-                                        param_distributions = random_grid, 
-                                        n_iter = 100, 
-                                        cv = 5, 
-                                        scoring=['roc_auc', 'recall'],
-                                        refit ='roc_auc',
-                                        verbose=1, 
-                                        n_jobs = -1,
-                                        random_state = random_seed)
-
-optimized_rfc.fit(X_train, y_train)
-print('\n')
-
-
-#----  obtaining results of the grid run
-cv_results = optimized_rfc.cv_results_
-cv_results_df = pd.DataFrame(cv_results)
-
-print('> hyperparameter tuning results')
-print(cv_results_df)
-
-
-best_params = optimized_rfc.best_params_
-best_score = optimized_rfc.best_score_
-
-print(f'> best hyperparameters = {best_params}')
-print(f'> best cv score = {best_score} \n')
-
-
-#----  predicting on the training and testing set
-y_train_pred = optimized_rfc.predict(X_train)
-accuracy_train = round(accuracy_score(y_train, y_train_pred),3)
-roc_auc_train = round(roc_auc_score(y_train, y_train_pred),3)
-recall_train = round(recall_score(y_train, y_train_pred),3)
-precision_train = round(precision_score(y_train, y_train_pred),3)
-
-y_pred = optimized_rfc.predict(X_test)
-y_pred_proba = optimized_rfc.predict_proba(X_test)[:, 1]
-accuracy_test = round(accuracy_score(y_test, y_pred),3)
-roc_auc_test = round(roc_auc_score(y_test, y_pred),3)
-recall_test = round(recall_score(y_test, y_pred),3)
-precision_test = round(precision_score(y_test, y_pred),3)
-confusion_matrix = confusion_matrix(y_test, y_pred)
-
-print('> evaluation metrics \n')
-print('%-10s %20s %10s' % ('metric','training','testing'))
-print('%-10s %20s %10s' % ('roc auc', roc_auc_train, roc_auc_test))
-print('%-10s %20s %10s' % ('accuracy', accuracy_train, accuracy_test))
-print('%-10s %20s %10s' % ('recall', recall_train, recall_test))
-print('%-10s %20s %10s' % ('precision', precision_train, precision_test))
-print('\n')
-
-print('> confusion matrix \n')
-print(confusion_matrix)
-print('\n')
-
-fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
-roc_auc = auc(fpr, tpr)
-
-#----  getting feature importance
-optimized_rfc_importance = optimized_rfc.best_estimator_.feature_importances_
-indices = np.argsort(-1*optimized_rfc_importance)
-rfc_feature_imp_df = pd.DataFrame(optimized_rfc_importance, index=X_train.columns, columns=['importance'])
-rfc_feature_imp_df.sort_values(by='importance', ascending=False, inplace=True)
-
-# summarize feature importance
-print('> feature importance')
-
-for i in indices:
-    print('%-8s %-20s' % (round(optimized_rfc_importance[i], 4), f'({features[i]})'))
-
-
-#----  saving model results
-
-# saving cv runs
-cv_results_df.to_csv('output\\cv_results.csv')
-
-best_params_str = ', '.join('{}={}'.format(key, val) for key, val in best_params.items())
-
-# Saving parameters and evaluation metrics for the best model
-with open('output//rfc_results.txt', 'w') as file:
-    file.write('best parameters = '+best_params_str+'\n')
-    file.write('roc_auc:  '+'(train='+str(roc_auc_train)+')  (test='+str(roc_auc_test)+')'+'\n')
-    file.write('accuracy:  '+'(train='+str(accuracy_train)+')  (test='+str(accuracy_test)+')'+'\n')
-    file.write('recall:  '+'(train='+str(recall_train)+')  (test='+str(recall_test)+')'+'\n')
-    file.write('precision:  '+'(train='+str(precision_train)+')  (test='+str(precision_test)+')'+'\n\n')
-    
-# Saving variable importances
-with open('output//rfc_results.txt', 'a') as file:
-    file.write('variable importances: \n')
-    rfc_feature_imp_df.to_string(file)
-    
-# ROC curve
-# print(plt.style.available)
-plt.style.use('seaborn')
-fig, ax = plt.subplots()
-ax.plot(fpr, tpr)
-ax.set_title('ROC Curve (auc = %0.2f)' % roc_auc, fontsize=22, fontweight='bold')
-ax.set_xlabel('False Positive Rate', fontsize=16, fontweight='bold')
-ax.set_ylabel('True Positive Rate', fontsize=16, fontweight='bold')
-ax.spines['left'].set_color('black')
-ax.spines['left'].set_linewidth(2)
-ax.spines['bottom'].set_color('black')
-ax.spines['bottom'].set_linewidth(2)
-ax.grid(True)
-fig.savefig('output/roc_plot.png')
-
-# feature importance plot
-plt.style.use('seaborn')
-fig, ax = plt.subplots()
-ax.barh(range(len(indices)), optimized_rfc_importance[indices], align='center')
-ax.set_yticks(range(len(indices)))
-ax.set_yticklabels([features[i] for i in indices], fontsize=12)
-ax.invert_yaxis()
-ax.set_title('Feature Importances', fontsize=22, fontweight='bold')
-ax.set_xlabel('Relative Importance', fontsize=16, fontweight='bold')
-ax.set_ylabel('Features', fontsize=16, fontweight='bold')
-ax.spines['left'].set_color('black')
-ax.spines['left'].set_linewidth(2)
-ax.spines['bottom'].set_color('black')
-ax.spines['bottom'].set_linewidth(2)
-ax.grid(True)
-fig.savefig('output/feature_importance_plot.png')
