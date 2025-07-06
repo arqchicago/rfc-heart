@@ -147,7 +147,7 @@ def evaluate_model(model, X_train, X_test, y_train, y_test):
     ax.spines['bottom'].set_color('black')
     ax.spines['bottom'].set_linewidth(2)
     ax.grid(True)
-    fig.savefig('output/roc_plot.png')
+    fig.savefig('output//roc_plot.png')
 
 
 if __name__ == '__main__':
